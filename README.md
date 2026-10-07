@@ -106,7 +106,25 @@ and fetch secrets from Secrets Manager at runtime instead.
 
 Set `AUTH_URL` to the deployed domain, and set `RESOURCE_ISSUER_URL`/
 `RESOURCE_IDENTIFIER`/`RESOURCE_TOKEN_URL`/`TASKBOARD_API_URL` to wherever
-Taskboard0 itself is deployed.
+Taskboard0 itself is deployed. After changing an env var, push a new commit
+(or otherwise force a fresh build) — "Redeploy this version" alone reuses
+the existing build output and won't pick up the change.
+
+**Auth.js behind Amplify's proxy — two more non-obvious fixes already
+applied in this repo, worth knowing about if you fork this**:
+
+- `trustHost: true` is set in `src/auth.ts`. Required whenever you
+  self-host Auth.js off Vercel; without it, the incoming `Host` header
+  isn't trusted and auth can break in hard-to-diagnose ways.
+- `src/app/api/chat/route.ts` passes `secureCookie: true` explicitly to
+  `getToken()`. Behind Amplify's CloudFront/Lambda proxy, `getToken()`'s
+  own attempt to infer "is this an HTTPS request" from the incoming
+  request can disagree with how the session cookie was actually named at
+  sign-in time (`__Secure-authjs.session-token` vs `authjs.session-token`).
+  When they disagree, `getToken()` silently returns `null` — the user
+  looks signed in (the cookie is right there in DevTools) but every API
+  route sees them as signed out. If you add more routes that need the
+  session, apply the same fix there.
 
 ## Project layout
 
