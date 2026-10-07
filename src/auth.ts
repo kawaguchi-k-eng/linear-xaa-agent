@@ -21,6 +21,10 @@ declare module '@auth/core/jwt' {
 const OKTA_TOKEN_URL = process.env.OKTA_TOKEN_URL ?? `${process.env.OKTA_ISSUER}/v1/token`;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Required when self-hosting outside Vercel (e.g. AWS Amplify) — without
+  // this, Auth.js doesn't trust the incoming Host header, which can break
+  // cookie handling and silently drop the session.
+  trustHost: true,
   providers: [
     Okta({
       clientId: process.env.OKTA_CLIENT_ID,
