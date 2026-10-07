@@ -1,0 +1,24 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        # Next.js SSR can't see Amplify Console env vars at runtime by default —
+        # they're build-phase only. Write the ones this app needs into
+        # .env.production so they're baked in for the server at request time.
+        # https://docs.aws.amazon.com/amplify/latest/userguide/ssr-environment-variables.html
+        # Note: this bakes OKTA_CLIENT_SECRET and OPENAI_API_KEY into the
+        # build artifact — see the README's Amplify deployment section.
+        - env | grep -e AUTH_SECRET -e AUTH_URL -e OKTA_ISSUER -e OKTA_CLIENT_ID -e OKTA_CLIENT_SECRET -e OKTA_REQUESTING_APP_CLIENT_ID -e OKTA_REQUESTING_APP_CLIENT_SECRET -e OKTA_ORG_TOKEN_URL -e RESOURCE_ISSUER_URL -e RESOURCE_IDENTIFIER -e RESOURCE_SCOPES -e RESOURCE_TOKEN_URL -e RESOURCE_EXTERNAL_CLIENT_ID -e RESOURCE_EXTERNAL_CLIENT_SECRET -e TASKBOARD_API_URL -e OPENAI_API_KEY -e OPENAI_MODEL >> .env.production
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*
