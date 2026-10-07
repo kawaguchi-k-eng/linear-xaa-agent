@@ -19,7 +19,16 @@ export async function POST(req: NextRequest) {
   // Read the signed, encrypted session JWT directly off the request cookies.
   // This intentionally bypasses auth.ts's `session` callback (and therefore
   // never reaches the browser) because it carries the raw Okta ID token.
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  // Force the __Secure- cookie prefix explicitly: behind Amplify's
+  // CloudFront/Lambda proxy, getToken()'s own https detection from the
+  // request can disagree with how the cookie was actually set during
+  // sign-in, causing it to look up the wrong cookie name and silently
+  // return null. AUTH_URL is always https here, so this is always correct.
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET,
+    secureCookie: process.env.AUTH_URL?.startsWith('https://') ?? true,
+  });
 
   if (!token?.userSubject || !token.oktaIdToken) {
     return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
