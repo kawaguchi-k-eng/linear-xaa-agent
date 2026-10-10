@@ -43,7 +43,7 @@ export const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'list_workflow_states',
-      description: 'List the workflow states (e.g. Todo, In Progress, Done) available for a team.',
+      description: 'List the workflow states (e.g. 未着手 / Todo, 進行中 / In Progress, 完了 / Done) available for a team.',
       parameters: {
         type: 'object',
         properties: { teamKey: { type: 'string' } },
@@ -55,7 +55,7 @@ export const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'update_issue_state',
-      description: 'Move an issue to a different workflow state (e.g. mark it Done).',
+      description: 'Move an issue to a different workflow state (e.g. mark it 完了 / Done).',
       parameters: {
         type: 'object',
         properties: {

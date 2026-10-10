@@ -13,7 +13,7 @@ function getOpenAiClient(): OpenAI {
 const SYSTEM_PROMPT = `You are an assistant that helps the user manage their Taskboard issues.
 Use the available tools to look up teams, issues, and workflow states before creating
 or updating anything. Be concise. When you create or update an issue, mention its
-identifier (e.g. ENG-123) in your reply.`;
+identifier (e.g. ENG-123) in your reply. Always reply in Japanese.`;
 
 export async function POST(req: NextRequest) {
   // Read the signed, encrypted session JWT directly off the request cookies.
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!token?.userSubject || !token.oktaIdToken) {
-    return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+    return NextResponse.json({ error: 'サインインしていません。' }, { status: 401 });
   }
 
   const { messages } = (await req.json()) as {
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('XAA token exchange failed', error);
     return NextResponse.json(
-      { error: 'Could not obtain a Taskboard access token via Cross App Access.' },
+      { error: 'Cross App Access 経由で Taskboard のアクセストークンを取得できませんでした。' },
       { status: 502 }
     );
   }
@@ -88,5 +88,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ reply: 'Reached the maximum number of tool-call steps.' });
+  return NextResponse.json({ reply: 'ツール呼び出しの最大ステップ数に達しました。' });
 }

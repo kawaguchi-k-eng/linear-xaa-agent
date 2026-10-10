@@ -30,7 +30,7 @@ export default function Chat() {
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? `Request failed (${response.status})`);
+        throw new Error(body.error ?? `リクエストに失敗しました（${response.status}）`);
       }
 
       const { reply } = await response.json();
@@ -59,8 +59,8 @@ export default function Chat() {
       >
         {messages.length === 0 && (
           <p style={{ opacity: 0.6 }}>
-            Try: &quot;What teams do I have?&quot; or &quot;Create a bug in ENG titled login button is
-            misaligned&quot;.
+            例：「どんなチームがありますか？」や「ENG に『ログインボタンの位置がずれている』という
+            バグを作成して」と入力してみてください。
           </p>
         )}
         {messages
@@ -80,7 +80,7 @@ export default function Chat() {
               </div>
             </div>
           ))}
-        {loading && <p style={{ opacity: 0.6 }}>Thinking…</p>}
+        {loading && <p style={{ opacity: 0.6 }}>考え中…</p>}
       </div>
 
       {error && <p style={{ color: '#dc2626' }}>{error}</p>}
@@ -90,13 +90,13 @@ export default function Chat() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') send();
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) send();
           }}
-          placeholder="Ask about your Linear issues…"
+          placeholder="課題について質問してください…"
           style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #4443' }}
         />
         <button onClick={send} disabled={loading} style={{ padding: '10px 16px', borderRadius: 8 }}>
-          Send
+          送信
         </button>
       </div>
     </div>

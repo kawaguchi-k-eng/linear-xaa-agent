@@ -14,12 +14,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Taskboard Agent (Okta XAA)",
-  description: "Custom AI agent that reaches the Taskboard0 demo app via Okta Cross App Access",
+  description: "Okta Cross App Access 経由で Taskboard0 デモアプリにアクセスするカスタム AI エージェント",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="ja" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>{children}</body>
     </html>
   );

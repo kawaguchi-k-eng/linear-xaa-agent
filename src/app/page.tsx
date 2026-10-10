@@ -10,7 +10,7 @@ export default async function Home() {
       <div className={styles.page}>
         <main className={styles.main}>
           <h1>Taskboard Agent</h1>
-          <p>Sign in with your Okta account to chat with the agent about your Taskboard issues.</p>
+          <p>Okta アカウントでサインインすると、Taskboard の課題についてエージェントとチャットできます。</p>
           <form
             action={async () => {
               'use server';
@@ -18,7 +18,7 @@ export default async function Home() {
             }}
           >
             <button type="submit" style={{ padding: '10px 20px', borderRadius: 128, cursor: 'pointer' }}>
-              Sign in with Okta
+              Okta でサインイン
             </button>
           </form>
         </main>
@@ -38,7 +38,7 @@ export default async function Home() {
             }}
           >
             <button type="submit" style={{ padding: '8px 16px', borderRadius: 128, cursor: 'pointer' }}>
-              Sign out
+              サインアウト
             </button>
           </form>
         </div>
