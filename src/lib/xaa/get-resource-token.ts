@@ -4,8 +4,12 @@ import { ResourceAccessTokenPayload } from './types';
 
 type CacheEntry = { token: string; expiresAt: number };
 
+/** Scopes the Taskboard resource app defines. */
+export type ResourceScope = 'read' | 'write';
+
 /**
- * Demo-only in-memory cache, keyed by the Okta user subject.
+ * Demo-only in-memory cache, keyed by the Okta user subject plus the
+ * requested scopes (a read-only token must never satisfy a write request).
  * On serverless hosts (Amplify/Lambda) with multiple concurrent instances this
  * cache is per-instance, not shared. For production, replace with a shared
  * store (DynamoDB, Redis, etc.) keyed by user id.
@@ -26,7 +30,6 @@ export type ResourceTokenConfig = {
   resourceTokenUrl: string;
   resourceExternalClientId: string;
   resourceExternalClientSecret?: string;
-  scopes: string[];
 };
 
 export function readResourceTokenConfigFromEnv(): ResourceTokenConfig {
@@ -59,7 +62,6 @@ export function readResourceTokenConfigFromEnv(): ResourceTokenConfig {
     resourceTokenUrl: required('RESOURCE_TOKEN_URL'),
     resourceExternalClientId: required('RESOURCE_EXTERNAL_CLIENT_ID'),
     resourceExternalClientSecret: process.env.RESOURCE_EXTERNAL_CLIENT_SECRET,
-    scopes: (process.env.RESOURCE_SCOPES ?? 'read write').split(/\s+/).filter(Boolean),
   };
 }
 
@@ -68,15 +70,23 @@ export function readResourceTokenConfigFromEnv(): ResourceTokenConfig {
  * resource app (Taskboard0), scoped to the given user, reusing a cached
  * token while it remains valid.
  *
+ * Callers request only the scopes the current operation needs (least
+ * privilege). Okta rejects the whole request with `invalid_scope` if any
+ * requested scope isn't granted in the XAA connection, so asking for more
+ * than needed would also break operations that are still permitted.
+ *
  * @param userSubject stable identifier for the signed-in user (e.g. Okta `sub`)
  * @param oktaIdToken the user's current Okta OIDC ID token
+ * @param scopes the scopes this operation needs
  */
 export async function getResourceAccessToken(
   userSubject: string,
   oktaIdToken: string,
+  scopes: ResourceScope[],
   config: ResourceTokenConfig = readResourceTokenConfigFromEnv()
 ): Promise<string> {
-  const cached = tokenCache.get(userSubject);
+  const cacheKey = `${userSubject} ${[...scopes].sort().join(' ')}`;
+  const cached = tokenCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now() + 10_000) {
     return cached.token;
   }
@@ -87,7 +97,7 @@ export async function getResourceAccessToken(
     resource: config.resourceIdentifier,
     subjectToken: oktaIdToken,
     subjectTokenType: 'oidc',
-    scopes: config.scopes,
+    scopes,
     clientID: config.requestingAppClientId,
     clientSecret: config.requestingAppClientSecret,
   });
@@ -95,13 +105,13 @@ export async function getResourceAccessToken(
   const accessToken: ResourceAccessTokenPayload = await exchangeIdJag({
     tokenUrl: config.resourceTokenUrl,
     idJag: idJag.access_token,
-    scopes: config.scopes,
+    scopes,
     clientID: config.resourceExternalClientId,
     clientSecret: config.resourceExternalClientSecret,
   });
 
   const expiresInMs = (accessToken.expires_in ?? 3600) * 1000;
-  tokenCache.set(userSubject, {
+  tokenCache.set(cacheKey, {
     token: accessToken.access_token,
     expiresAt: Date.now() + expiresInMs,
   });

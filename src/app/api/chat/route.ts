@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import OpenAI from 'openai';
-import { getResourceAccessToken } from '@/lib/xaa/get-resource-token';
+import { getResourceAccessToken, ResourceScope } from '@/lib/xaa/get-resource-token';
+import { OAuthRequestError } from '@/lib/xaa/types';
 import { tools, runTool } from '@/lib/agent-tools';
 
 let openai: OpenAI | undefined;
@@ -13,7 +14,9 @@ function getOpenAiClient(): OpenAI {
 const SYSTEM_PROMPT = `You are an assistant that helps the user manage their Taskboard issues.
 Use the available tools to look up teams, issues, and workflow states before creating
 or updating anything. Be concise. When you create or update an issue, mention its
-identifier (e.g. ENG-123) in your reply. Always reply in Japanese.`;
+identifier (e.g. ENG-123) in your reply. If a tool result says the operation is not
+permitted, tell the user the administrator has not granted that permission and do not
+retry. Always reply in Japanese.`;
 
 export async function POST(req: NextRequest) {
   // Read the signed, encrypted session JWT directly off the request cookies.
@@ -38,16 +41,25 @@ export async function POST(req: NextRequest) {
     messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
   };
 
-  let resourceAccessToken: string;
-  try {
-    resourceAccessToken = await getResourceAccessToken(token.userSubject, token.oktaIdToken);
-  } catch (error) {
-    console.error('XAA token exchange failed', error);
-    return NextResponse.json(
-      { error: 'Cross App Access 経由で Taskboard のアクセストークンを取得できませんでした。' },
-      { status: 502 }
-    );
-  }
+  const { userSubject, oktaIdToken } = token;
+  // Tokens are fetched per tool call with only the scope that tool needs.
+  const getAccessToken = async (scope: ResourceScope) => {
+    try {
+      return await getResourceAccessToken(userSubject, oktaIdToken, [scope]);
+    } catch (error) {
+      if (
+        error instanceof OAuthRequestError &&
+        typeof error.body === 'object' &&
+        error.body.error === 'invalid_scope'
+      ) {
+        throw new Error(
+          `この操作は許可されていません: Okta の Cross App Access 設定で '${scope}' スコープが付与されていません。`
+        );
+      }
+      console.error('XAA token exchange failed', error);
+      throw new Error('Cross App Access 経由で Taskboard のアクセストークンを取得できませんでした。');
+    }
+  };
 
   const conversation: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: 'system', content: SYSTEM_PROMPT },
@@ -75,7 +87,7 @@ export async function POST(req: NextRequest) {
       let result: unknown;
       try {
         const args = JSON.parse(toolCall.function.arguments || '{}');
-        result = await runTool(toolCall.function.name, args, resourceAccessToken);
+        result = await runTool(toolCall.function.name, args, getAccessToken);
       } catch (error) {
         result = { error: error instanceof Error ? error.message : String(error) };
       }

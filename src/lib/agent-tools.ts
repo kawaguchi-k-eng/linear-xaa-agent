@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import * as taskboard from './taskboard';
+import { ResourceScope } from './xaa/get-resource-token';
 
 export const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
@@ -68,11 +69,24 @@ export const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   },
 ];
 
+/** The single scope each tool needs, so the agent never requests more than the current operation uses. */
+const TOOL_SCOPES: Record<string, ResourceScope> = {
+  list_teams: 'read',
+  list_issues: 'read',
+  list_workflow_states: 'read',
+  create_issue: 'write',
+  update_issue_state: 'write',
+};
+
 export async function runTool(
   name: string,
   args: Record<string, unknown>,
-  resourceAccessToken: string
+  getAccessToken: (scope: ResourceScope) => Promise<string>
 ): Promise<unknown> {
+  const scope = TOOL_SCOPES[name];
+  if (!scope) throw new Error(`Unknown tool: ${name}`);
+  const resourceAccessToken = await getAccessToken(scope);
+
   switch (name) {
     case 'list_teams':
       return taskboard.listTeams(resourceAccessToken);
